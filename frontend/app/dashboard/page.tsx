@@ -8,9 +8,15 @@ type Role = "BLUE" | "RED";
 export default function Dashboard() {
   const router = useRouter();
   const cursorRef = useRef<HTMLDivElement>(null);
+
+  const [mounted, setMounted] = useState(false);
   const [joining, setJoining] = useState<Role | null>(null);
   const [hovered, setHovered] = useState<Role | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   /* custom cursor */
   useEffect(() => {
@@ -19,9 +25,12 @@ export default function Dashboard() {
       cursorRef.current.style.left = `${e.clientX}px`;
       cursorRef.current.style.top = `${e.clientY}px`;
     };
+
     window.addEventListener("mousemove", move);
     return () => window.removeEventListener("mousemove", move);
   }, []);
+
+  if (!mounted) return null;
 
   const handleJoin = (role: Role) => {
     router.push(`/dashboard/select-team/${role.toLowerCase()}`);
@@ -32,7 +41,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <style>{`
+      <style suppressHydrationWarning>{`
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
