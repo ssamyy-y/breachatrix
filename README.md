@@ -1,5 +1,8 @@
 Breach@Trix
 
+BACKEND ENV: DATABASE_URL=postgresql://postgres.oaufcgnelafbaxceohoy:ordinatrix26@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres
+FRONTEND ENV: NEXT_PUBLIC_API_URL=http://localhost:5000
+
 Breach@Trix is a high-intensity cybersecurity challenge where strategy, speed, and technical expertise collide.
 Teams compete by taking on opposing cybersecurity roles — Red Team (Attackers) and Blue Team (Defenders) — battling over a deliberately vulnerable website or application.
 
