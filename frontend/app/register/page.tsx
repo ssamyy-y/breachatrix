@@ -50,16 +50,20 @@ export default function RegisterPage() {
     y.set(0);
   };
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null); // Clear previous errors
 
     try {
       await register(username, password);
       router.push("/dashboard");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Registration failed. Systems may be offline.");
+      // Use the specific error message if available, otherwise your fallback
+      setError(err.message || "Registration failed. Systems may be offline.");
     } finally {
       setLoading(false);
     }
@@ -120,6 +124,21 @@ export default function RegisterPage() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div
+                    style={{ transform: "translateZ(30px)" }}
+                    className="mb-4 px-3 py-2 rounded border border-red-900/40 border-l-4 border-l-red-600 bg-red-950/10 shadow-[0_0_15px_rgba(220,38,38,0.1)]"
+                  >
+                    <p className="text-sm font-mono text-red-400 tracking-tight leading-snug">
+                      {error}
+                    </p>
+                  </div>
+                )}
+
+                {/* Rest of your inputs (Innovator ID, Auth Key, etc.) */}
+              </form>
+
               <div style={{ transform: "translateZ(20px)" }}>
                 <label className="block text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
                   Innovator ID

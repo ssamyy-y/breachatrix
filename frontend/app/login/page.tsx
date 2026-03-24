@@ -51,14 +51,21 @@ export default function LoginPage() {
     y.set(0);
   };
 
+  const [error, setError] = useState<string | null>(null); // Add this state
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null); // Clear previous errors
+
     try {
       await login(username, password);
       router.push("/dashboard");
     } catch (err: any) {
-      alert(err.message || "Authentication failed.");
+      // Set the error state instead of alerting
+      setError(
+        err.message || "Invalid username or password. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -126,6 +133,20 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div
+                  // Keep it popping forward slightly
+                  style={{ transform: "translateZ(30px)" }}
+                  // REDUCED PADDING AND MARGINS FOR THE BOX
+                  className="mb-4 px-3 py-2.5 rounded border border-red-900/40 border-l-4 border-l-red-600 bg-red-950/10 shadow-[0_0_15px_rgba(220,38,38,0.1)]"
+                >
+                  {/* Clean text output */}
+                  <p className="text-sm font-mono text-red-400 tracking-tight leading-tight">
+                    {error}
+                  </p>
+                </div>
+              )}
+
               <div style={{ transform: "translateZ(20px)" }}>
                 <label className="block text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
                   Innovator ID
