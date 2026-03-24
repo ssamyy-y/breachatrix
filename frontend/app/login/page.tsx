@@ -89,10 +89,10 @@ export default function LoginPage() {
             }}
           />
 
-          {/* Card Glassmorphism Effect */}
+          {/* Card Glassmorphism Effect - UPDATED TO DARK MODE */}
           <div
             style={{ transform: "translateZ(50px)" }}
-            className="bg-white/80 backdrop-blur-xl border border-white/30 p-10 shadow-[0_20px_50px_rgba(220,38,38,0.2)] rounded-sm border-t-4 border-red-600"
+            className="bg-[#111111]/95 backdrop-blur-xl border border-gray-800/60 p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-sm border-t-4 border-red-600"
           >
             <div
               className="mb-10 select-none"
@@ -108,9 +108,9 @@ export default function LoginPage() {
                   Breach
                 </span>
 
-                <span className="text-gray-900 mx-1">@</span>
-
-                <span className="text-gray-900 font-black">trix</span>
+                {/* UPDATED TEXT COLOR */}
+                <span className="text-white mx-1">@</span>
+                <span className="text-white font-black">trix</span>
               </motion.h1>
 
               <motion.div
@@ -131,11 +131,12 @@ export default function LoginPage() {
                   Innovator ID
                 </label>
 
+                {/* UPDATED INPUT STYLES */}
                 <input
-                  className="w-full px-4 py-3 bg-white/70 backdrop-blur border border-gray-200 rounded-md
-    focus:border-red-500 focus:ring-2 focus:ring-red-500/30
+                  className="w-full px-4 py-3 bg-[#0a0a0a] border border-gray-800 rounded-md
+    text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/30
     outline-none transition-all duration-200
-    placeholder:text-gray-400"
+    placeholder:text-gray-600"
                   placeholder="Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -148,12 +149,13 @@ export default function LoginPage() {
                   Auth Key
                 </label>
 
+                {/* UPDATED INPUT STYLES */}
                 <input
                   type="password"
-                  className="w-full px-4 py-3 bg-white/70 backdrop-blur border border-gray-200 rounded-md
-    focus:border-red-500 focus:ring-2 focus:ring-red-500/30
+                  className="w-full px-4 py-3 bg-[#0a0a0a] border border-gray-800 rounded-md
+    text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/30
     outline-none transition-all duration-200
-    placeholder:text-gray-400"
+    placeholder:text-gray-600"
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -167,9 +169,9 @@ export default function LoginPage() {
                 disabled={loading}
                 style={{ transform: "translateZ(40px)" }}
                 className="w-full relative overflow-hidden rounded-md
-  bg-gradient-to-r from-gray-900 to-black
+  bg-gradient-to-r from-slate-900 to-black border border-gray-800/50
   text-white py-4 font-semibold uppercase tracking-widest
-  shadow-lg hover:shadow-red-500/30
+  shadow-lg hover:shadow-red-500/20
   transition-all duration-300 disabled:opacity-50"
               >
                 <span className="relative z-10">
@@ -184,7 +186,7 @@ export default function LoginPage() {
             </form>
 
             <div
-              className="mt-8 pt-6 border-t border-gray-100 text-center space-y-3"
+              className="mt-8 pt-6 border-t border-gray-800 text-center space-y-3"
               style={{ transform: "translateZ(10px)" }}
             >
               <p className="text-xs text-gray-500">

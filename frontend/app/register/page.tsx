@@ -87,14 +87,15 @@ export default function RegisterPage() {
             className="pointer-events-none absolute inset-0 rounded-sm"
             style={{
               background:
-                "radial-gradient(circle at var(--x) var(--y), rgba(220,38,38,0.18), transparent 45%)",
+                "radial-gradient(circle at var(--x) var(--y), rgba(220,38,38,0.15), transparent 40%)",
             }}
           />
 
-          {/* Card */}
+          {/* DARK CARD */}
           <div
             style={{ transform: "translateZ(50px)" }}
-            className="bg-white/85 backdrop-blur-xl p-10 shadow-[0_20px_50px_rgba(220,38,38,0.2)] rounded-sm border border-white/30"
+            className="bg-[#111111]/95 backdrop-blur-xl border border-gray-800/60 
+        p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-sm border-t-4 border-red-600"
           >
             {/* Header */}
             <div
@@ -106,9 +107,8 @@ export default function RegisterPage() {
                   Breach
                 </span>
 
-                <span className="text-gray-900 mx-1">@</span>
-
-                <span className="text-gray-900 font-black">trix</span>
+                <span className="text-white mx-1">@</span>
+                <span className="text-white font-black">trix</span>
               </h1>
 
               <div className="h-[2px] bg-red-600 mt-3 w-[140px] rounded-full" />
@@ -126,10 +126,10 @@ export default function RegisterPage() {
                 </label>
 
                 <input
-                  className="w-full px-4 py-3 bg-white/70 backdrop-blur border border-gray-200 rounded-md
-                  focus:border-red-500 focus:ring-2 focus:ring-red-500/30
-                  outline-none transition-all duration-200
-                  placeholder:text-gray-400"
+                  className="w-full px-4 py-3 bg-[#0a0a0a] border border-gray-800 rounded-md
+              text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/30
+              outline-none transition-all duration-200
+              placeholder:text-gray-600"
                   placeholder="Create your innovator ID"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -144,10 +144,10 @@ export default function RegisterPage() {
 
                 <input
                   type="password"
-                  className="w-full px-4 py-3 bg-white/70 backdrop-blur border border-gray-200 rounded-md
-                  focus:border-red-500 focus:ring-2 focus:ring-red-500/30
-                  outline-none transition-all duration-200
-                  placeholder:text-gray-400"
+                  className="w-full px-4 py-3 bg-[#0a0a0a] border border-gray-800 rounded-md
+              text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/30
+              outline-none transition-all duration-200
+              placeholder:text-gray-600"
                   placeholder="Create a secure passcode"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -162,22 +162,25 @@ export default function RegisterPage() {
                 disabled={loading}
                 style={{ transform: "translateZ(40px)" }}
                 className="w-full relative overflow-hidden rounded-md
-                bg-gradient-to-r from-gray-900 to-black
-                text-white py-4 font-semibold uppercase tracking-widest
-                shadow-lg hover:shadow-red-500/30
-                transition-all duration-300 disabled:opacity-50"
+            bg-gradient-to-r from-slate-900 to-black border border-gray-800/50
+            text-white py-4 font-semibold uppercase tracking-widest
+            shadow-lg hover:shadow-red-500/20
+            transition-all duration-300 disabled:opacity-50"
               >
                 <span className="relative z-10">
-                  {loading ? "Creating Account..." : "Initialize Account"}
+                  {loading ? "Initializing..." : "Initialize Account"}
                 </span>
 
-                <span className="absolute inset-0 opacity-0 hover:opacity-100 transition duration-300 bg-gradient-to-r from-red-600 to-red-500" />
+                <span
+                  className="absolute inset-0 opacity-0 hover:opacity-100 transition duration-300
+              bg-gradient-to-r from-red-600 to-red-500"
+                />
               </motion.button>
             </form>
 
             {/* Footer */}
             <div
-              className="mt-8 pt-6 border-t border-gray-200/60 text-center"
+              className="mt-8 pt-6 border-t border-gray-800 text-center"
               style={{ transform: "translateZ(10px)" }}
             >
               <p className="text-xs text-gray-500">
