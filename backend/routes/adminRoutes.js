@@ -2,8 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const admin = require("../controllers/adminController");
-const authMiddleware = require("../middleware/authMiddleware"); // ✅ FIX
-const requireRole = require("../middleware/requireRole"); // likely fix too
+const authMiddleware = require("../middleware/authMiddleware");
+const requireRole = require("../middleware/requireRole");
 
 // All admin routes require a valid JWT AND role === "admin"
 router.use(authMiddleware);
@@ -30,9 +30,23 @@ router.delete("/teams/:teamId/members/:userId", admin.removeUserFromTeam);
 router.patch("/teams/:id/score", admin.adjustScore);
 router.post("/scores/reset", admin.resetAllScores);
 
+// ── Scoring Enhancements ─────────────────────────────────────
+router.post("/teams/:id/bonus", admin.awardBonusPoints);
+router.post("/teams/:id/penalty", admin.deductPoints);
+router.get("/scores/history", admin.getScoreHistory);
+router.get("/teams/:id/score-history", admin.getTeamScoreHistory);
+router.post("/scores/full-reset", admin.fullScoreReset);
+
 // ── Logs ─────────────────────────────────────────────────────
 router.get("/logs/attacks", admin.getAttackLogs);
 router.get("/logs/defenses", admin.getDefenseLogs);
 router.delete("/logs", admin.clearAllLogs);
+
+// ── Announcements ────────────────────────────────────────────
+router.get("/announcements", admin.getAnnouncements);
+router.post("/announcements", admin.createAnnouncement);
+router.patch("/announcements/:id", admin.updateAnnouncement);
+router.delete("/announcements/:id", admin.deleteAnnouncement);
+router.delete("/announcements", admin.clearAllAnnouncements);
 
 module.exports = router;
