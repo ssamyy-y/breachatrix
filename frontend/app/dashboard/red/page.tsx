@@ -1,5 +1,6 @@
 "use client";
 
+import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { useEffect, useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
@@ -85,20 +86,18 @@ export default function RedTeamDashboard() {
   } | null>(null);
   const [scanning, setScanning] = useState(false);
 
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-  const authHeaders = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-
   async function fetchAll() {
     try {
       const [lRes, tRes, mRes] = await Promise.all([
-        fetch(`${API}/api/attack/history`, { headers: authHeaders }),
-        fetch(`${API}/api/attack/targets`, { headers: authHeaders }),
-        fetch(`${API}/api/team/my`, { headers: authHeaders }),
+        fetch("http://localhost:5000/attack/history", {
+          credentials: "include",
+        }),
+        fetch("http://localhost:5000/attack/targets", {
+          credentials: "include",
+        }),
+        fetch("http://localhost:5000/team/me", {
+          credentials: "include",
+        }),
       ]);
       const [lData, tData, mData] = await Promise.all([
         lRes.json(),
@@ -116,8 +115,12 @@ export default function RedTeamDashboard() {
   async function fetchLogs() {
     try {
       const [lRes, mRes] = await Promise.all([
-        fetch(`${API}/api/attack/history`, { headers: authHeaders }),
-        fetch(`${API}/api/team/my`, { headers: authHeaders }),
+        fetch("http://localhost:5000/attack/history", {
+          credentials: "include",
+        }),
+        fetch("http://localhost:5000/team/me", {
+          credentials: "include",
+        }),
       ]);
       const [lData, mData] = await Promise.all([lRes.json(), mRes.json()]);
       setLogs(Array.isArray(lData) ? lData : []);
@@ -148,9 +151,12 @@ export default function RedTeamDashboard() {
     setScanning(false);
 
     try {
-      const res = await fetch(`${API}/api/attack/submit`, {
+      const res = await fetch("http://localhost:5000/attack/submit", {
         method: "POST",
-        headers: authHeaders,
+        credentials: "include", // 🔥 REQUIRED
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           targetTeamId: selectedTarget,
           type: attackType,
@@ -180,6 +186,7 @@ export default function RedTeamDashboard() {
 
   return (
     <>
+      <AnnouncementBanner />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
 

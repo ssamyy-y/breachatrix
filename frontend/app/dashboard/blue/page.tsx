@@ -71,20 +71,18 @@ export default function BlueTeamDashboard() {
   const [deploying, setDeploying] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-  const authHeaders = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-
   async function fetchAll() {
     try {
       const [dRes, aRes, tRes] = await Promise.all([
-        fetch(`${API}/api/defense/logs`, { headers: authHeaders }),
-        fetch(`${API}/api/defense/incoming`, { headers: authHeaders }),
-        fetch(`${API}/api/team/my`, { headers: authHeaders }),
+        fetch(`http://localhost:5000/defense/logs`, {
+          credentials: "include",
+        }),
+        fetch(`http://localhost:5000/defense/attacks`, {
+          credentials: "include",
+        }),
+        fetch(`http://localhost:5000/team/me`, {
+          credentials: "include",
+        }),
       ]);
       const [dData, aData, tData] = await Promise.all([
         dRes.json(),
@@ -117,9 +115,12 @@ export default function BlueTeamDashboard() {
     await new Promise((r) => setTimeout(r, 1200));
     setDeploying(false);
     try {
-      const res = await fetch(`${API}/api/defense/patch`, {
+      const res = await fetch("http://localhost:5000/defense/patch", {
         method: "POST",
-        headers: authHeaders,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json", // 🔥 REQUIRED
+        },
         body: JSON.stringify({ type: patchType }),
       });
       const data = await res.json();

@@ -1,4 +1,9 @@
 const prisma = require("../config/prisma");
+let _io = null;
+// Call this once from server.js after Socket.io is initialised
+exports.setIO = (io) => {
+  _io = io;
+};
 
 // ------------------- DASHBOARD OVERVIEW -------------------
 // GET /api/admin/dashboard
@@ -480,6 +485,9 @@ exports.createAnnouncement = async (req, res) => {
         type,
       },
     });
+
+    // Emit real-time event to all connected participants
+    if (_io) _io.emit("new_announcement", announcement);
 
     res.status(201).json({ message: "Announcement created", announcement });
   } catch (err) {
