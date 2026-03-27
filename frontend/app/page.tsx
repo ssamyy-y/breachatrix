@@ -14,7 +14,7 @@ const Scene3D = dynamic(() => import("@/components/Scene"), {
 });
 
 const RULES = [
-  { id: "01", text: "1 team of 4 students per entry" },
+  { id: "01", text: "1 team of 2 students per entry" },
   { id: "02", text: "Eligibility: Classes IX – XII" },
   { id: "03", text: "No pre-installed exploits or external toolkits" },
   { id: "04", text: "All attacks must stay within the sandboxed environment" },

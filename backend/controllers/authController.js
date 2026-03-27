@@ -10,7 +10,7 @@ exports.register = async (req, res) => {
     // Hash password
     const hash = await bcrypt.hash(password, 10);
 
-    // Create user in DB
+    // Create user
     const user = await prisma.user.create({
       data: {
         username,
@@ -19,11 +19,28 @@ exports.register = async (req, res) => {
       },
     });
 
+    // ✅ GENERATE TOKEN (same as login)
+    const token = generateToken({ id: user.id, role: user.role });
+
+    // ✅ SET COOKIE (same as login)
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "strict",
+      maxAge: 1000 * 60 * 60 * 2,
+    });
+
+    // ✅ RESPONSE
     res.status(201).json({
-      message: "User registered successfully",
+      message: "User registered & logged in",
       user: { id: user.id, username: user.username, role: user.role },
     });
   } catch (error) {
+    // ✅ Handle duplicate username cleanly
+    if (error.code === "P2002") {
+      return res.status(400).json({ error: "Username already exists" });
+    }
+
     res.status(500).json({ error: error.message });
   }
 };
