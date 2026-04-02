@@ -113,7 +113,7 @@ export default function Background3D() {
         <StarField clickPos={clickPos} />
 
         {/* Bloom Post-processing */}
-        <EffectComposer disableNormalPass>
+        <EffectComposer enableNormalPass={false}>
           <Bloom
             luminanceThreshold={0.9}
             mipmapBlur
