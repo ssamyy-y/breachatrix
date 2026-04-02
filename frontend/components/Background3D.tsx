@@ -1,7 +1,7 @@
 /// <reference types="@react-three/fiber" />
 "use client";
 
-
+import { Points } from "three";
 import { useState, useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
@@ -14,7 +14,7 @@ function StarField({
   count?: number;
   clickPos: [number, number] | null;
 }) {
-  const mesh = useRef<THREE.Points>(null!);
+ const mesh = useRef<Points>(null!);
   const rippleTime = useRef(0);
   const activeClickPos = useRef<[number, number] | null>(null);
 
