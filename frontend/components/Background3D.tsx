@@ -1,4 +1,6 @@
+/// <reference types="@react-three/fiber" />
 "use client";
+
 
 import { useState, useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
