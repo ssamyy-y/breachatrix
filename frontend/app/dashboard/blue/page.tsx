@@ -6,6 +6,15 @@ import AnnouncementBanner from "@/components/AnnouncementBanner";
 
 const API = "http://localhost:5000";
 
+function normalizeUrl(url: string | null) {
+  if (!url) return null;
+  // If it already starts with http:// or https://, leave it
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  // Otherwise, prepend https://
+  return `https://${url}`;
+}
+
+
 type DefenseLog = {
   id: string;
   teamId: string;
@@ -30,34 +39,45 @@ type MyTeam = {
   score: number;
 };
 
+type Opponent = {
+  id: string;
+  name: string;
+  score: number;
+  role: string;
+};
+
+type Matchup = {
+  matchupId: string;
+  roundLabel: string | null;
+  targetUrl: string | null;
+  repoUrl: string | null;
+  myTeam: MyTeam;
+  myRole: "RED" | "BLUE";
+  opponent: Opponent;
+};
+
 const VULN_TYPES = [
-  { value: "SQL_INJECTION", label: "SQL Injection", icon: "💉", color: "#0af" },
-  { value: "XSS", label: "Cross-Site Scripting", icon: "🪝", color: "#00e5b0" },
-  { value: "AUTH_BYPASS", label: "Auth Bypass", icon: "🔓", color: "#4488ff" },
-  {
-    value: "MISCONFIG",
-    label: "Misconfiguration",
-    icon: "⚙️",
-    color: "#a78bfa",
-  },
+  { value: "SQL_INJECTION", label: "SQL Injection",        icon: "💉", color: "#0af"    },
+  { value: "XSS",           label: "Cross-Site Scripting", icon: "🪝", color: "#00e5b0" },
+  { value: "AUTH_BYPASS",   label: "Auth Bypass",          icon: "🔓", color: "#4488ff" },
+  { value: "MISCONFIG",     label: "Misconfiguration",     icon: "⚙️", color: "#a78bfa" },
 ];
 
 const ATTACK_SEVERITY: Record<string, string> = {
   SQL_INJECTION: "CRITICAL",
-  AUTH_BYPASS: "CRITICAL",
-  XSS: "HIGH",
-  MISCONFIG: "MEDIUM",
+  AUTH_BYPASS:   "CRITICAL",
+  XSS:           "HIGH",
+  MISCONFIG:     "MEDIUM",
 };
 
 const SEV_COLOR: Record<string, string> = {
   CRITICAL: "#ff2244",
-  HIGH: "#ff8800",
-  MEDIUM: "#ffcc00",
+  HIGH:     "#ff8800",
+  MEDIUM:   "#ffcc00",
 };
 
 function formatTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("en-IN", { hour12: false });
+  return new Date(iso).toLocaleString("en-IN", { hour12: false });
 }
 
 function getVuln(type: string) {
@@ -65,35 +85,40 @@ function getVuln(type: string) {
 }
 
 export default function BlueTeamDashboard() {
-  const [defenseLogs, setDefenseLogs] = useState<DefenseLog[]>([]);
+  const [defenseLogs, setDefenseLogs]       = useState<DefenseLog[]>([]);
   const [incomingAttacks, setIncomingAttacks] = useState<IncomingAttack[]>([]);
-  const [myTeam, setMyTeam] = useState<MyTeam | null>(null);
-  const [patchType, setPatchType] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [deploying, setDeploying] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [myTeam, setMyTeam]                 = useState<MyTeam | null>(null);
+  const [matchup, setMatchup]               = useState<Matchup | null>(null);
+  const [matchupError, setMatchupError]     = useState<string | null>(null);
+  const [patchType, setPatchType]           = useState("");
+  const [loading, setLoading]               = useState(false);
+  const [deploying, setDeploying]           = useState(false);
+  const [msg, setMsg]                       = useState<{ ok: boolean; text: string } | null>(null);
 
   async function fetchAll() {
     try {
-      const [dRes, aRes, tRes] = await Promise.all([
-        fetch(`http://localhost:5000/defense/logs`, {
-          credentials: "include",
-        }),
-        fetch(`http://localhost:5000/defense/attacks`, {
-          credentials: "include",
-        }),
-        fetch(`http://localhost:5000/team/me`, {
-          credentials: "include",
-        }),
+      const [dRes, aRes, mRes] = await Promise.all([
+        fetch(`${API}/defense/logs`,            { credentials: "include" }),
+        fetch(`${API}/defense/attacks`,         { credentials: "include" }),
+        fetch(`${API}/competition/my-matchup`,  { credentials: "include" }),
       ]);
-      const [dData, aData, tData] = await Promise.all([
-        dRes.json(),
-        aRes.json(),
-        tRes.json(),
-      ]);
+
+      const [dData, aData] = await Promise.all([dRes.json(), aRes.json()]);
       setDefenseLogs(Array.isArray(dData) ? dData : []);
       setIncomingAttacks(Array.isArray(aData) ? aData : []);
-      if (tData && tData.id) setMyTeam(tData);
+
+      if (mRes.ok) {
+        const mData: Matchup = await mRes.json();
+        setMatchup(mData);
+        setMyTeam(mData.myTeam);
+        setMatchupError(null);
+      } else {
+        const err = await mRes.json();
+        setMatchupError(err.error ?? "No active matchup found.");
+        // Fall back to /team/me for score display
+        const tRes = await fetch(`${API}/team/me`, { credentials: "include" });
+        if (tRes.ok) setMyTeam(await tRes.json());
+      }
     } catch {
       /* silent */
     }
@@ -117,20 +142,15 @@ export default function BlueTeamDashboard() {
     await new Promise((r) => setTimeout(r, 1200));
     setDeploying(false);
     try {
-      const res = await fetch("http://localhost:5000/defense/patch", {
+      const res = await fetch(`${API}/defense/patch`, {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json", // 🔥 REQUIRED
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: patchType }),
       });
       const data = await res.json();
       if (res.ok) {
-        setMsg({
-          ok: true,
-          text: `✔ PATCH DEPLOYED — ${patchType.replace("_", " ")}`,
-        });
+        setMsg({ ok: true, text: `✔ PATCH DEPLOYED — ${patchType.replace("_", " ")}` });
         fetchAll();
       } else {
         setMsg({ ok: false, text: data.error ?? "Patch failed." });
@@ -142,27 +162,20 @@ export default function BlueTeamDashboard() {
     }
   }
 
-  const patchedCount = defenseLogs.filter((d) => d.success).length;
-  const criticalIncoming = incomingAttacks.filter(
-    (a) => ATTACK_SEVERITY[a.type] === "CRITICAL",
-  ).length;
-  const systemHealth = Math.max(
-    0,
-    100 - incomingAttacks.length * 8 + patchedCount * 5,
-  );
-  const healthClamped = Math.min(100, systemHealth);
+  const patchedCount      = defenseLogs.filter((d) => d.success).length;
+  const criticalIncoming  = incomingAttacks.filter((a) => ATTACK_SEVERITY[a.type] === "CRITICAL").length;
+  const systemHealth      = Math.min(100, Math.max(0, 100 - incomingAttacks.length * 8 + patchedCount * 5));
 
   return (
     <>
-    <AnnouncementBanner /> 
+      <AnnouncementBanner />
       <div className="btd">
+
         {/* ——— TOP BAR ——— */}
         <header className="topbar">
           <div className="topbar-left">
             <span className="badge-blue">🔵 BLUE TEAM</span>
-            <h1 className="topbar-title">
-              BREACH<span>@</span>TRIX
-            </h1>
+            <h1 className="topbar-title">BREACH<span>@</span>TRIX</h1>
           </div>
           <div className="topbar-right">
             {myTeam && (
@@ -177,34 +190,16 @@ export default function BlueTeamDashboard() {
                 <div
                   className="health-fill"
                   style={{
-                    width: `${healthClamped}%`,
-                    background:
-                      healthClamped > 60
-                        ? "#22cc77"
-                        : healthClamped > 30
-                          ? "#ffaa00"
-                          : "#ff2244",
-                    boxShadow:
-                      healthClamped > 60
-                        ? "0 0 8px #22cc77"
-                        : healthClamped > 30
-                          ? "0 0 8px #ffaa00"
-                          : "0 0 8px #ff2244",
+                    width: `${systemHealth}%`,
+                    background:    systemHealth > 60 ? "#22cc77" : systemHealth > 30 ? "#ffaa00" : "#ff2244",
+                    boxShadow: systemHealth > 60 ? "0 0 8px #22cc77" : systemHealth > 30 ? "0 0 8px #ffaa00" : "0 0 8px #ff2244",
                   }}
                 />
               </div>
-              <span
-                className="health-pct"
-                style={{
-                  color:
-                    healthClamped > 60
-                      ? "#22cc77"
-                      : healthClamped > 30
-                        ? "#ffaa00"
-                        : "#ff2244",
-                }}
-              >
-                {healthClamped}%
+              <span className="health-pct" style={{
+                color: systemHealth > 60 ? "#22cc77" : systemHealth > 30 ? "#ffaa00" : "#ff2244",
+              }}>
+                {systemHealth}%
               </span>
             </div>
             <span className="live-dot" />
@@ -234,6 +229,11 @@ export default function BlueTeamDashboard() {
               <div className="stat-value red">{criticalIncoming}</div>
               <div className="stat-sub">high-severity hits</div>
             </div>
+            <div className="stat-cell">
+              <div className="stat-label">Opponent Score</div>
+              <div className="stat-value red">{matchup?.opponent?.score ?? "—"}</div>
+              <div className="stat-sub">{matchup?.opponent?.name ?? "awaiting matchup"}</div>
+            </div>
           </div>
 
           {/* ——— LOG PANEL ——— */}
@@ -243,7 +243,194 @@ export default function BlueTeamDashboard() {
 
           {/* ——— SIDE PANEL ——— */}
           <aside className="side-panel">
-            {/* patch form */}
+
+            {/* ── MATCHUP INFO CARD ── */}
+            <div className="form-card" style={{ marginBottom: 16 }}>
+              <div className="panel-heading" style={{ marginBottom: 16 }}>
+                <h2>Mission Briefing</h2>
+                <div className="panel-line" />
+              </div>
+
+              {matchupError ? (
+                <div style={{
+                  fontFamily: "'Share Tech Mono', monospace",
+                  fontSize: 11,
+                  color: "#333",
+                  lineHeight: 1.8,
+                }}>
+                  &gt; {matchupError}
+                  <br />&gt; Contact the admin.
+                  <br />&gt; _
+                </div>
+              ) : !matchup ? (
+                <div style={{
+                  fontFamily: "'Share Tech Mono', monospace",
+                  fontSize: 11,
+                  color: "#333",
+                }}>
+                  &gt; LOADING...
+                </div>
+              ) : (
+                <>
+                  {matchup.roundLabel && (
+                    <div style={{
+                      fontFamily: "'Share Tech Mono', monospace",
+                      fontSize: 10,
+                      color: "#22cc77",
+                      letterSpacing: "0.15em",
+                      marginBottom: 14,
+                      textTransform: "uppercase",
+                    }}>
+                      ◈ {matchup.roundLabel}
+                    </div>
+                  )}
+
+                  {/* Opponent */}
+                  <div style={{ marginBottom: 18 }}>
+                    <div className="form-label">Your Attacker</div>
+                    <div style={{
+                      background: "rgba(255,34,68,0.05)",
+                      border: "1px solid rgba(255,34,68,0.15)",
+                      borderRadius: 4,
+                      padding: "10px 14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginTop: 6,
+                    }}>
+                      <div>
+                        <div style={{
+                          fontFamily: "'Rajdhani', sans-serif",
+                          fontWeight: 700,
+                          fontSize: 15,
+                          color: "#fff",
+                          letterSpacing: "0.05em",
+                        }}>
+                          🔴 {matchup.opponent.name}
+                        </div>
+                        <div style={{
+                          fontFamily: "'Share Tech Mono', monospace",
+                          fontSize: 10,
+                          color: "#555",
+                          marginTop: 2,
+                        }}>
+                          RED TEAM · ATTACKING
+                        </div>
+                      </div>
+                      <div style={{
+                        fontFamily: "'Share Tech Mono', monospace",
+                        fontSize: 18,
+                        color: "#ff2244",
+                        fontWeight: 700,
+                      }}>
+                        {matchup.opponent.score}
+                        <span style={{ fontSize: 9, color: "#444", marginLeft: 3 }}>PTS</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Target URL */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div className="form-label">System Under Defense</div>
+                    {matchup.targetUrl ? (
+                      <a
+                        href={normalizeUrl(matchup.targetUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          marginTop: 6,
+                          padding: "10px 14px",
+                          background: "rgba(34,204,119,0.08)",
+                          border: "1px solid rgba(34,204,119,0.25)",
+                          borderRadius: 4,
+                          fontFamily: "'Share Tech Mono', monospace",
+                          fontSize: 12,
+                          color: "#22cc77",
+                          textDecoration: "none",
+                          letterSpacing: "0.08em",
+                          transition: "background 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLAnchorElement).style.background = "rgba(34,204,119,0.15)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLAnchorElement).style.background = "rgba(34,204,119,0.08)";
+                        }}
+                      >
+                        🛡 VIEW TARGET APP
+                      </a>
+                    ) : (
+                      <div style={{
+                        fontFamily: "'Share Tech Mono', monospace",
+                        fontSize: 11,
+                        color: "#333",
+                        marginTop: 6,
+                        padding: "10px 12px",
+                        border: "1px dashed #1a1a1a",
+                        borderRadius: 4,
+                      }}>
+                        &gt; URL PENDING...
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Repo URL */}
+                  <div>
+                    <div className="form-label">Source Repo</div>
+                    {matchup.repoUrl ? (
+                      <a
+                        href={normalizeUrl(matchup.repoUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          marginTop: 6,
+                          padding: "10px 14px",
+                          background: "rgba(68,136,255,0.08)",
+                          border: "1px solid rgba(68,136,255,0.25)",
+                          borderRadius: 4,
+                          fontFamily: "'Share Tech Mono', monospace",
+                          fontSize: 12,
+                          color: "#4488ff",
+                          textDecoration: "none",
+                          letterSpacing: "0.08em",
+                          transition: "background 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLAnchorElement).style.background = "rgba(68,136,255,0.15)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLAnchorElement).style.background = "rgba(68,136,255,0.08)";
+                        }}
+                      >
+                        🔗 OPEN GITHUB REPO
+                      </a>
+                    ) : (
+                      <div style={{
+                        fontFamily: "'Share Tech Mono', monospace",
+                        fontSize: 11,
+                        color: "#333",
+                        marginTop: 6,
+                        padding: "10px 12px",
+                        border: "1px dashed #1a1a1a",
+                        borderRadius: 4,
+                      }}>
+                        &gt; REPO LINK PENDING...
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* ── PATCH FORM ── */}
             <div className="form-card">
               <div className="panel-heading" style={{ marginBottom: 14 }}>
                 <h2>Deploy Patch</h2>
@@ -260,12 +447,7 @@ export default function BlueTeamDashboard() {
                   >
                     <span className="patch-btn-icon">{v.icon}</span>
                     <span className="patch-btn-label">{v.label}</span>
-                    <span
-                      className="patch-btn-color"
-                      style={{ color: v.color }}
-                    >
-                      PATCH
-                    </span>
+                    <span className="patch-btn-color" style={{ color: v.color }}>PATCH</span>
                   </button>
                 ))}
               </div>
@@ -276,11 +458,7 @@ export default function BlueTeamDashboard() {
                 disabled={loading || !patchType}
               >
                 {deploying && <span className="scan-bar" />}
-                {deploying
-                  ? "ANALYZING PATCH..."
-                  : loading
-                    ? "DEPLOYING..."
-                    : "🛡 DEPLOY PATCH"}
+                {deploying ? "ANALYZING PATCH..." : loading ? "DEPLOYING..." : "🛡 DEPLOY PATCH"}
               </button>
 
               {msg && (
@@ -288,26 +466,23 @@ export default function BlueTeamDashboard() {
               )}
             </div>
 
-            {/* threat breakdown */}
+            {/* ── THREAT BREAKDOWN ── */}
             <div className="threat-card">
               <div className="panel-heading" style={{ marginBottom: 12 }}>
                 <h2>Threat Breakdown</h2>
                 <div className="panel-line" />
               </div>
               {VULN_TYPES.map((v) => {
-                const count = incomingAttacks.filter(
-                  (a) => a.type === v.value,
-                ).length;
+                const count = incomingAttacks.filter((a) => a.type === v.value).length;
                 return (
                   <div className="threat-row" key={v.value}>
-                    <span className="threat-type">
-                      {v.icon} {v.label}
-                    </span>
+                    <span className="threat-type">{v.icon} {v.label}</span>
                     <span className="threat-count">{count}x</span>
                   </div>
                 );
               })}
             </div>
+
           </aside>
         </div>
       </div>
@@ -334,17 +509,11 @@ function Tabs({
         >
           Incoming Attacks
           {incomingAttacks.length > 0 && (
-            <span
-              style={{
-                marginLeft: 6,
-                background: "#ff2244",
-                color: "#fff",
-                fontSize: 9,
-                padding: "1px 5px",
-                borderRadius: 2,
-                fontFamily: "'Share Tech Mono', monospace",
-              }}
-            >
+            <span style={{
+              marginLeft: 6, background: "#ff2244", color: "#fff",
+              fontSize: 9, padding: "1px 5px", borderRadius: 2,
+              fontFamily: "'Share Tech Mono', monospace",
+            }}>
               {incomingAttacks.length}
             </span>
           )}
@@ -355,17 +524,11 @@ function Tabs({
         >
           Defense Logs
           {defenseLogs.length > 0 && (
-            <span
-              style={{
-                marginLeft: 6,
-                background: "#22cc77",
-                color: "#fff",
-                fontSize: 9,
-                padding: "1px 5px",
-                borderRadius: 2,
-                fontFamily: "'Share Tech Mono', monospace",
-              }}
-            >
+            <span style={{
+              marginLeft: 6, background: "#22cc77", color: "#fff",
+              fontSize: 9, padding: "1px 5px", borderRadius: 2,
+              fontFamily: "'Share Tech Mono', monospace",
+            }}>
               {defenseLogs.length}
             </span>
           )}
@@ -375,32 +538,22 @@ function Tabs({
       {tab === "incoming" ? (
         incomingAttacks.length === 0 ? (
           <div className="empty-state">
-            &gt; NO INCOMING THREATS DETECTED
-            <br />
-            &gt; SYSTEM SECURE
-            <br />
+            &gt; NO INCOMING THREATS DETECTED<br />
+            &gt; SYSTEM SECURE<br />
             &gt; _
           </div>
         ) : (
           incomingAttacks.map((atk) => {
-            const v = getVuln(atk.type);
+            const v   = getVuln(atk.type);
             const sev = ATTACK_SEVERITY[atk.type] ?? "MEDIUM";
             return (
               <div className="log-entry incoming" key={atk.id}>
-                <div className="log-time">
-                  {formatTime(atk.createdAt).replace(", ", "\n")}
-                </div>
+                <div className="log-time">{formatTime(atk.createdAt).replace(", ", "\n")}</div>
                 <div className="log-type">
                   <span className="type-icon">{v?.icon ?? "⚡"}</span>
                   {v?.label ?? atk.type}
                 </div>
-                <span
-                  className="sev-pill"
-                  style={{
-                    background: SEV_COLOR[sev] + "22",
-                    color: SEV_COLOR[sev],
-                  }}
-                >
+                <span className="sev-pill" style={{ background: SEV_COLOR[sev] + "22", color: SEV_COLOR[sev] }}>
                   {sev}
                 </span>
                 <div className={`status-dot ${atk.success ? "threat" : ""}`} />
@@ -410,10 +563,8 @@ function Tabs({
         )
       ) : defenseLogs.length === 0 ? (
         <div className="empty-state">
-          &gt; NO PATCHES DEPLOYED YET
-          <br />
-          &gt; DEPLOY YOUR FIRST FIX
-          <br />
+          &gt; NO PATCHES DEPLOYED YET<br />
+          &gt; DEPLOY YOUR FIRST FIX<br />
           &gt; _
         </div>
       ) : (
@@ -421,20 +572,12 @@ function Tabs({
           const v = getVuln(log.type);
           return (
             <div className="log-entry" key={log.id}>
-              <div className="log-time">
-                {formatTime(log.createdAt).replace(", ", "\n")}
-              </div>
+              <div className="log-time">{formatTime(log.createdAt).replace(", ", "\n")}</div>
               <div className="log-type">
                 <span className="type-icon">{v?.icon ?? "🛡"}</span>
                 {v?.label ?? log.type}
               </div>
-              <span
-                className="sev-pill"
-                style={{
-                  background: "rgba(34,204,119,0.12)",
-                  color: "#22cc77",
-                }}
-              >
+              <span className="sev-pill" style={{ background: "rgba(34,204,119,0.12)", color: "#22cc77" }}>
                 PATCHED
               </span>
               <div className="status-dot" />

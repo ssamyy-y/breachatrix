@@ -47,7 +47,7 @@ export default function AnnouncementBanner() {
   }, []);
 
   useEffect(() => {
-    fetch(`${API}/competition`, { credentials: "include" })
+    fetch(`${API}/announcement`, { credentials: "include" })
       .then((r) => r.json())
       .then((data: Announcement[]) => {
         if (!Array.isArray(data)) return;

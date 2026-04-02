@@ -4,7 +4,15 @@ import "@/styles/redteam.css";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { useEffect, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+const API =  "http://localhost:5000";
+  // helper function
+function normalizeUrl(url: string | null) {
+  if (!url) return null;
+  // If it already starts with http:// or https://, leave it
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  // Otherwise, prepend https://
+  return `https://${url}`;
+}
 
 type AttackLog = {
   id: string;
@@ -15,10 +23,11 @@ type AttackLog = {
   createdAt: string;
 };
 
-type Target = {
+type Opponent = {
   id: string;
   name: string;
   score: number;
+  role: string;
 };
 
 type MyTeam = {
@@ -28,104 +37,67 @@ type MyTeam = {
   score: number;
 };
 
+type Matchup = {
+  matchupId: string;
+  roundLabel: string | null;
+  targetUrl: string | null;
+  repoUrl: string | null;
+  myTeam: MyTeam;
+  myRole: "RED" | "BLUE";
+  opponent: Opponent;
+};
+
 const ATTACK_TYPES = [
-  {
-    value: "SQL_INJECTION",
-    label: "SQL Injection",
-    icon: "💉",
-    severity: "CRITICAL",
-  },
-  { value: "XSS", label: "Cross-Site Scripting", icon: "🪝", severity: "HIGH" },
-  {
-    value: "AUTH_BYPASS",
-    label: "Auth Bypass",
-    icon: "🔓",
-    severity: "CRITICAL",
-  },
-  {
-    value: "MISCONFIG",
-    label: "Misconfiguration Exploit",
-    icon: "⚙️",
-    severity: "MEDIUM",
-  },
+  { value: "SQL_INJECTION",        label: "SQL Injection",              icon: "💉", severity: "CRITICAL" },
+  { value: "SECURITY_MISCONFIG",   label: "Security Misconfiguration",  icon: "⚙️", severity: "HIGH"     },
+  { value: "SENSITIVE_DATA",       label: "Sensitive Data Exposure",    icon: "📂", severity: "CRITICAL" },
+  { value: "BROKEN_AUTH",          label: "Broken Authentication",      icon: "🔓", severity: "CRITICAL" },
+  { value: "JWT_VULN",             label: "JWT Vulnerabilities",        icon: "🪪", severity: "HIGH"     }
 ];
 
 const SEVERITY_COLORS: Record<string, string> = {
   CRITICAL: "#ff2244",
-  HIGH: "#ff8800",
-  MEDIUM: "#ffcc00",
+  HIGH:     "#ff8800",
+  MEDIUM:   "#ffcc00",
 };
 
 function getSeverity(type: string) {
-  const found = ATTACK_TYPES.find((a) => a.value === type);
-  return found?.severity ?? "MEDIUM";
+  return ATTACK_TYPES.find((a) => a.value === type)?.severity ?? "MEDIUM";
 }
 
 function formatTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("en-IN", { hour12: false });
-}
-
-function GlitchText({ text }: { text: string }) {
-  return (
-    <span className="glitch" data-text={text}>
-      {text}
-    </span>
-  );
+  return new Date(iso).toLocaleString("en-IN", { hour12: false });
 }
 
 export default function RedTeamDashboard() {
-  const [logs, setLogs] = useState<AttackLog[]>([]);
-  const [targets, setTargets] = useState<Target[]>([]);
-  const [myTeam, setMyTeam] = useState<MyTeam | null>(null);
-  const [selectedTarget, setSelectedTarget] = useState("");
-  const [attackType, setAttackType] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [submitMsg, setSubmitMsg] = useState<{
-    ok: boolean;
-    text: string;
-  } | null>(null);
-  const [scanning, setScanning] = useState(false);
+  const [logs, setLogs]         = useState<AttackLog[]>([]);
+  const [matchup, setMatchup]   = useState<Matchup | null>(null);
+  const [myTeam, setMyTeam]     = useState<MyTeam | null>(null);
+  const [matchupError, setMatchupError] = useState<string | null>(null);
 
+  // ── data fetching ──────────────────────────────────────────────
   async function fetchAll() {
     try {
-      const [lRes, tRes, mRes] = await Promise.all([
-        fetch("http://localhost:5000/attack/history", {
-          credentials: "include",
-        }),
-        fetch("http://localhost:5000/attack/targets", {
-          credentials: "include",
-        }),
-        fetch("http://localhost:5000/team/me", {
-          credentials: "include",
-        }),
-      ]);
-      const [lData, tData, mData] = await Promise.all([
-        lRes.json(),
-        tRes.json(),
-        mRes.json(),
-      ]);
-      setLogs(Array.isArray(lData) ? lData : []);
-      setTargets(Array.isArray(tData) ? tData : []);
-      if (mData && mData.id) setMyTeam(mData);
-    } catch {
-      setLogs([]);
-    }
-  }
-
-  async function fetchLogs() {
-    try {
       const [lRes, mRes] = await Promise.all([
-        fetch("http://localhost:5000/attack/history", {
-          credentials: "include",
-        }),
-        fetch("http://localhost:5000/team/me", {
-          credentials: "include",
-        }),
+        fetch(`${API}/attack/history`,          { credentials: "include" }),
+        fetch(`${API}/competition/my-matchup`,  { credentials: "include" }),
       ]);
-      const [lData, mData] = await Promise.all([lRes.json(), mRes.json()]);
+
+      const lData = await lRes.json();
       setLogs(Array.isArray(lData) ? lData : []);
-      if (mData && mData.id) setMyTeam(mData);
+
+      if (mRes.ok) {
+        const mData: Matchup = await mRes.json();
+        setMatchup(mData);
+        setMyTeam(mData.myTeam);
+        setMatchupError(null);
+      } else {
+        const err = await mRes.json();
+        setMatchupError(err.error ?? "No active matchup found.");
+        // Still try to get team score separately
+        const tRes = await fetch(`${API}/team/me`, { credentials: "include" });
+        if (tRes.ok) setMyTeam(await tRes.json());
+      }
     } catch {
       setLogs([]);
     }
@@ -138,57 +110,13 @@ export default function RedTeamDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleSubmit() {
-    if (!selectedTarget || !attackType) {
-      setSubmitMsg({ ok: false, text: "Select a target and attack vector." });
-      return;
-    }
-    setLoading(true);
-    setScanning(true);
-    setSubmitMsg(null);
-
-    // Fake scanning delay for drama
-    await new Promise((r) => setTimeout(r, 1400));
-    setScanning(false);
-
-    try {
-      const res = await fetch("http://localhost:5000/attack/submit", {
-        method: "POST",
-        credentials: "include", // 🔥 REQUIRED
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          targetTeamId: selectedTarget,
-          type: attackType,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSubmitMsg({
-          ok: true,
-          text: `✔ BREACH LOGGED — ${data.attack?.type}`,
-        });
-        fetchLogs();
-      } else {
-        setSubmitMsg({ ok: false, text: data.error ?? "Attack failed." });
-      }
-    } catch {
-      setSubmitMsg({ ok: false, text: "Network error." });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const successCount = logs.filter((l) => l.success).length;
-  const criticalCount = logs.filter(
-    (l) => getSeverity(l.type) === "CRITICAL",
-  ).length;
+  // ── derived stats ──────────────────────────────────────────────
+  const successCount  = logs.filter((l) => l.success).length;
+  const criticalCount = logs.filter((l) => getSeverity(l.type) === "CRITICAL").length;
 
   return (
     <>
       <AnnouncementBanner />
-      {/* @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap'); */}
 
       <div className="rtd">
         {/* ——— TOP BAR ——— */}
@@ -231,9 +159,9 @@ export default function RedTeamDashboard() {
               <div className="stat-sub">high-severity</div>
             </div>
             <div className="stat-cell">
-              <div className="stat-label">Targets Online</div>
-              <div className="stat-value">{targets.length}</div>
-              <div className="stat-sub">available teams</div>
+              <div className="stat-label">Opponent Score</div>
+              <div className="stat-value red">{matchup?.opponent?.score ?? "—"}</div>
+              <div className="stat-sub">{matchup?.opponent?.name ?? "awaiting matchup"}</div>
             </div>
             <div className="stat-cell">
               <div className="stat-label">Team Score</div>
@@ -252,10 +180,8 @@ export default function RedTeamDashboard() {
             {logs.length === 0 ? (
               <div className="empty-log">
                 &gt; NO ATTACK RECORDS FOUND
-                <br />
-                &gt; LAUNCH YOUR FIRST EXPLOIT
-                <br />
-                &gt; _
+                <br />&gt; LAUNCH YOUR FIRST EXPLOIT
+                <br />&gt; _
               </div>
             ) : (
               logs.map((log) => {
@@ -279,9 +205,7 @@ export default function RedTeamDashboard() {
                     >
                       {sev}
                     </span>
-                    <div
-                      className={`status-dot ${log.success ? "" : "fail"}`}
-                    />
+                    <div className={`status-dot ${log.success ? "" : "fail"}`} />
                   </div>
                 );
               })
@@ -290,92 +214,179 @@ export default function RedTeamDashboard() {
 
           {/* ——— SIDE PANEL ——— */}
           <aside className="side-panel">
-            {/* launch attack */}
+
+            {/* ── TARGET APP CARD ── */}
             <div className="form-card">
               <div className="panel-heading" style={{ marginBottom: 16 }}>
-                <h2>Launch Attack</h2>
+                <h2>Target System</h2>
                 <div className="panel-heading-line" />
               </div>
 
-              <label className="form-label">Select Target</label>
-              <select
-                className="form-select"
-                value={selectedTarget}
-                onChange={(e) => setSelectedTarget(e.target.value)}
-              >
-                <option value="">-- choose target --</option>
-                {targets.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-
-              <label className="form-label">Attack Vector</label>
-              <div className="type-grid">
-                {ATTACK_TYPES.map((a) => (
-                  <button
-                    key={a.value}
-                    className={`type-btn ${attackType === a.value ? "selected" : ""}`}
-                    onClick={() => setAttackType(a.value)}
-                  >
-                    <span className="type-btn-icon">{a.icon}</span>
-                    <span className="type-btn-label">{a.label}</span>
-                    <span
-                      className="type-btn-sev"
-                      style={{ color: SEVERITY_COLORS[a.severity] }}
-                    >
-                      {a.severity}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <button
-                className="launch-btn"
-                onClick={handleSubmit}
-                disabled={loading || !selectedTarget || !attackType}
-              >
-                {scanning && <span className="scan-bar" />}
-                {scanning
-                  ? "SCANNING TARGET..."
-                  : loading
-                    ? "DEPLOYING..."
-                    : "⚡ LAUNCH ATTACK"}
-              </button>
-
-              {submitMsg && (
-                <div className={`msg ${submitMsg.ok ? "ok" : "err"}`}>
-                  {submitMsg.text}
+              {matchupError ? (
+                <div className="empty-log" style={{ fontSize: 11, padding: "12px 0" }}>
+                  &gt; {matchupError}
+                  <br />&gt; Contact the admin.
+                  <br />&gt; _
                 </div>
+              ) : !matchup ? (
+                <div className="empty-log" style={{ fontSize: 11, padding: "12px 0" }}>
+                  &gt; LOADING MATCHUP DATA...
+                  <br />&gt; _
+                </div>
+              ) : (
+                <>
+                  {/* Round label */}
+                  {matchup.roundLabel && (
+                    <div style={{
+                      fontFamily: "'Share Tech Mono', monospace",
+                      fontSize: 10,
+                      color: "#ff2244",
+                      letterSpacing: "0.15em",
+                      marginBottom: 14,
+                      textTransform: "uppercase",
+                    }}>
+                      ◈ {matchup.roundLabel}
+                    </div>
+                  )}
+
+                  {/* Opponent */}
+                  <div style={{ marginBottom: 20 }}>
+                    <div className="form-label">Your Opponent</div>
+                    <div className="target-row" style={{
+                      background: "rgba(255,34,68,0.06)",
+                      border: "1px solid rgba(255,34,68,0.2)",
+                      borderRadius: 4,
+                      padding: "10px 14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}>
+                      <div>
+                        <div style={{
+                          fontFamily: "'Rajdhani', sans-serif",
+                          fontWeight: 700,
+                          fontSize: 15,
+                          color: "#fff",
+                          letterSpacing: "0.05em",
+                        }}>
+                          🔵 {matchup.opponent.name}
+                        </div>
+                        <div style={{
+                          fontFamily: "'Share Tech Mono', monospace",
+                          fontSize: 10,
+                          color: "#555",
+                          marginTop: 2,
+                        }}>
+                          BLUE TEAM · DEFENDING
+                        </div>
+                      </div>
+                      <div style={{
+                        fontFamily: "'Share Tech Mono', monospace",
+                        fontSize: 18,
+                        color: "#ff2244",
+                        fontWeight: 700,
+                      }}>
+                        {matchup.opponent.score}
+                        <span style={{ fontSize: 9, color: "#444", marginLeft: 3 }}>PTS</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Target URL */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div className="form-label">Vulnerable Application</div>
+                    {matchup.targetUrl ? (
+                      <a
+                       href={normalizeUrl(matchup.targetUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="launch-btn"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          textDecoration: "none",
+                          marginTop: 6,
+                        }}
+                      >
+                        ⚡ OPEN TARGET APP
+                      </a>
+                    ) : (
+                      <div style={{
+                        fontFamily: "'Share Tech Mono', monospace",
+                        fontSize: 11,
+                        color: "#444",
+                        marginTop: 6,
+                        padding: "10px 12px",
+                        border: "1px dashed #222",
+                        borderRadius: 4,
+                      }}>
+                        &gt; TARGET URL NOT SET YET
+                        <br />&gt; WAITING FOR ADMIN...
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Repo URL — shown to Red too for awareness */}
+                  {matchup.repoUrl && (
+                    <div>
+                      <div className="form-label">Resource Repo</div>
+                      <a
+                        href={normalizeUrl(matchup.repoUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          marginTop: 6,
+                          fontFamily: "'Share Tech Mono', monospace",
+                          fontSize: 11,
+                          color: "#666",
+                          textDecoration: "none",
+                          padding: "8px 12px",
+                          border: "1px solid #1a1a1a",
+                          borderRadius: 4,
+                          transition: "color 0.2s, border-color 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLAnchorElement).style.color = "#ff2244";
+                          (e.currentTarget as HTMLAnchorElement).style.borderColor = "#ff224440";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLAnchorElement).style.color = "#666";
+                          (e.currentTarget as HTMLAnchorElement).style.borderColor = "#1a1a1a";
+                        }}
+                      >
+                        🔗 VIEW REPO
+                      </a>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
-            {/* targets */}
+            {/* ── ATTACK VECTOR REFERENCE ── */}
             <div className="targets-card">
               <div className="panel-heading" style={{ marginBottom: 12 }}>
-                <h2>Enemy Teams</h2>
+                <h2>Attack Vectors</h2>
                 <div className="panel-heading-line" />
               </div>
-              {targets.length === 0 ? (
-                <p
-                  style={{
-                    fontFamily: "'Share Tech Mono', monospace",
-                    fontSize: 11,
-                    color: "#333",
-                  }}
-                >
-                  &gt; No targets detected
-                </p>
-              ) : (
-                targets.map((t) => (
-                  <div className="target-row" key={t.id}>
-                    <span className="target-name">{t.name}</span>
-                    <span className="target-score">{t.score} pts</span>
-                  </div>
-                ))
-              )}
+              {ATTACK_TYPES.map((a) => (
+                <div className="target-row" key={a.value} style={{ alignItems: "center" }}>
+                  <span style={{ marginRight: 8 }}>{a.icon}</span>
+                  <span className="target-name">{a.label}</span>
+                  <span
+                    className="target-score"
+                    style={{ color: SEVERITY_COLORS[a.severity], fontSize: 10 }}
+                  >
+                    {a.severity}
+                  </span>
+                </div>
+              ))}
             </div>
+
           </aside>
         </div>
       </div>

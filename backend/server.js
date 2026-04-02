@@ -13,6 +13,8 @@ const announcementRoutes = require("./routes/announcementRoutes");
 const authRoutes = require("./routes/authRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const competitionRoutes = require("./routes/competitionRoutes");
+
 
 const app = express();
 const server = http.createServer(app);
@@ -45,7 +47,8 @@ app.use("/auth", authRoutes);
 app.use("/team", teamRoutes);
 app.use("/vuln", attackRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/competition", announcementRoutes);
+app.use("/announcement", announcementRoutes);
+app.use("/competition", competitionRoutes);
 
 io.on("connection", (socket) => {
   console.log("Dashboard connected:", socket.id);

@@ -169,19 +169,41 @@ body {
 .stats-row {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Changed from 4 to 5 to accommodate Team, Patches, Attacks, Critical, and Opponent */
+  grid-template-columns: repeat(5, 1fr); 
   border-bottom: 1px solid rgba(0, 160, 255, 0.1);
+  background: rgba(4, 8, 15, 0.4);
 }
 
 .stat-cell {
   padding: 20px 26px;
-  border-right: 1px solid rgba(0, 160, 255, 0.08);
+  border-right: 1px solid rgba(0, 160, 255, 0.1);
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
+
+/* Vertical divider accent (optional, matching your reference image) */
+.stat-cell::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(0, 170, 255, 0.2), transparent);
+}
+
 .stat-cell:last-child {
   border-right: none;
 }
 
+.stat-cell:last-child::before {
+  display: none;
+}
+
+/* Hover effect from your original code */
 .stat-cell::after {
   content: "";
   position: absolute;
@@ -192,6 +214,7 @@ body {
   background: linear-gradient(90deg, #00aaff, transparent);
   transition: width 0.4s;
 }
+
 .stat-cell:hover::after {
   width: 100%;
 }
@@ -200,32 +223,52 @@ body {
   font-family: "Share Tech Mono", monospace;
   font-size: 10px;
   letter-spacing: 2px;
-  color: #334;
+  /* Lightened color for better visibility against dark background */
+  color: #556677; 
   text-transform: uppercase;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .stat-value {
-  font-size: 36px;
+  font-size: 32px; /* Slightly smaller to fit 5 columns comfortably */
   font-weight: 800;
   line-height: 1;
   color: #fff;
+  font-family: "Exo 2", sans-serif;
 }
+
 .stat-value.blue {
   color: #00aaff;
+  text-shadow: 0 0 10px rgba(0, 170, 255, 0.3);
 }
+
 .stat-value.red {
   color: #ff2244;
-}
-.stat-value.green {
-  color: #22cc77;
+  text-shadow: 0 0 10px rgba(255, 34, 68, 0.3);
 }
 
 .stat-sub {
-  font-size: 11px;
-  color: #334;
-  margin-top: 4px;
+  font-size: 10px;
+  color: #445566;
+  margin-top: 6px;
   font-family: "Share Tech Mono", monospace;
+  text-transform: lowercase;
+}
+
+/* Responsive adjustment */
+@media (max-width: 1100px) {
+  .stats-row {
+    grid-template-columns: repeat(3, 1fr); /* Wrap to 2 rows on medium screens */
+  }
+  .stat-cell:nth-child(3) {
+    border-right: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* ——— MAIN LOG ——— */
