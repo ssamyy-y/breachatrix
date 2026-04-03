@@ -68,7 +68,7 @@ console.log("AFTER LOGIN"); // 👈 add this
 const user = useAuthStore.getState().user;
 
 if (user) {
-  window.location.href = "/dashboard";
+  router.replace("/dashboard");
 }
     } catch (err: any) {
       // Set the error state instead of alerting
